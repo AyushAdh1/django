@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic.edit import FormView  # Add this import
+from django.views.generic.edit import FormView  
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Todo
@@ -23,7 +23,7 @@ class TodoAPIView(APIView):
         }, status=201)
 
 @method_decorator(csrf_exempt, name='dispatch')
-class TodoListView(APIView):  # Change to APIView
+class TodoListView(APIView): 
     def get(self, request):
         todos = Todo.objects.filter(is_deleted=False)
         todo_list = [{
