@@ -8,9 +8,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Todo
 from .forms import TodoForm
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+from .serializers import UserSerializer
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TodoAPIView(APIView):
+    permission_classes = [IsAuthenticated]  
     def post(self, request):
         todo = Todo.objects.create(**request.data)
         return Response({
@@ -24,6 +29,7 @@ class TodoAPIView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TodoListView(APIView): 
+    permission_classes = [IsAuthenticated]  # Add this line
     def get(self, request):
         todos = Todo.objects.filter(is_deleted=False)
         todo_list = [{
@@ -69,3 +75,35 @@ class TodoFormView(FormView):
 
     def form_invalid(self, form):
         return render(self.request, self.template_name, {'form': form})
+
+
+class RegisterView(APIView):
+    def post(self, request):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'message': 'Registration successful',
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                }
+            })
+        return Response(serializer.errors, status=400)
+
+class LoginView(APIView):
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        user = authenticate(username=username, password=password)
+        
+        if user:
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                }
+            })
+        return Response({'error': 'Invalid credentials'}, status=401)
