@@ -1,21 +1,22 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic.edit import FormView  
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.authentication import SessionAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication  # Add this import
+from rest_framework.permissions import IsAuthenticated
 from .models import Todo
 from .forms import TodoForm
-from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from .serializers import UserSerializer
 
-@method_decorator(csrf_exempt, name='dispatch')
 class TodoAPIView(APIView):
-    permission_classes = [IsAuthenticated]  
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
+    
     def post(self, request):
         todo = Todo.objects.create(**request.data)
         return Response({
@@ -27,9 +28,10 @@ class TodoAPIView(APIView):
             }
         }, status=201)
 
-@method_decorator(csrf_exempt, name='dispatch')
 class TodoListView(APIView): 
-    permission_classes = [IsAuthenticated]  # Add this line
+    permission_classes = [IsAuthenticated],
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
+    
     def get(self, request):
         todos = Todo.objects.filter(is_deleted=False)
         todo_list = [{
@@ -40,8 +42,10 @@ class TodoListView(APIView):
         } for todo in todos]
         return Response(todo_list) 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class TodoUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication,SessionAuthentication]
+    
     def put(self, request, pk):
         todo = Todo.objects.get(pk=pk)
         todo.title = request.data.get('title', todo.title)
@@ -50,13 +54,15 @@ class TodoUpdateView(APIView):
         todo.save()
         return Response({'message': 'Todo updated successfully'})
 
-@method_decorator(csrf_exempt, name='dispatch')
-class TodoDeleteView(View):
+class TodoDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication,SessionAuthentication]
+    
     def delete(self, request, pk):
         todo = Todo.objects.get(pk=pk)
         todo.is_deleted = True
         todo.save()
-        return JsonResponse({'message': 'Todo deleted successfully'})
+        return Response({'message': 'Todo deleted successfully'})
 
 class TodoFormView(FormView):
     template_name = 'todo_form.html'
@@ -76,8 +82,9 @@ class TodoFormView(FormView):
     def form_invalid(self, form):
         return render(self.request, self.template_name, {'form': form})
 
-
 class RegisterView(APIView):
+    authentication_classes = [SessionAuthentication]
+    
     def post(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
@@ -93,6 +100,8 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=400)
 
 class LoginView(APIView):
+    authentication_classes = [SessionAuthentication]
+    
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
